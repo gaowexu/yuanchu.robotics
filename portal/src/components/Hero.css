@@ -1,0 +1,382 @@
+/* ─── Hero shell ───────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  /* Medium-dark Tsinghua purple — clearly visible, not near-black */
+  background: linear-gradient(145deg, #3E1070 0%, #621AA0 42%, #7B20B8 72%, #8E28CC 100%);
+}
+
+/* ─── Dot grid ─────────────────────────────────────────────────── */
+.hero__dotgrid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Secondary ambient glow (bottom-left depth) ───────────────── */
+.hero__glow {
+  position: absolute;
+  width: 700px;
+  height: 700px;
+  bottom: -180px;
+  left: -80px;
+  background: radial-gradient(circle, rgba(200, 100, 255, 0.18) 0%, transparent 65%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Gradient-text: bright on dark bg ─────────────────────────── */
+/* Global .gradient-text uses dark purples — invisible on dark bg. */
+.hero .gradient-text {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F0D5FF 55%, #D98EFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Layout ───────────────────────────────────────────────────── */
+.hero__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+  padding-top: 96px;
+  padding-bottom: 72px;
+  min-height: 100vh;
+}
+
+/* ─── Left content — fixed 43% ─────────────────────────────────── */
+.hero__content {
+  flex: 0 0 43%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ─── Badge ────────────────────────────────────────────────────── */
+.hero__badge {
+  margin-bottom: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hero__badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.80);
+  animation: pulsePurple 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Headline — two-tier typographic hierarchy ─────────────────── */
+.hero__headline {
+  font-size: clamp(26px, 3.2vw, 46px);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+  color: #F0EAFF;
+}
+
+/* First span: eyebrow — lighter, smaller, muted */
+.hero__headline span:first-child {
+  display: block;
+  font-size: 0.68em;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.60);
+  margin-bottom: 4px;
+}
+
+/* Gradient span: main statement — heavy, vivid */
+.hero__headline .gradient-text {
+  display: block;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+/* ─── Subtitle ─────────────────────────────────────────────────── */
+.hero__subtitle {
+  font-size: clamp(12px, 1.1vw, 14px);
+  color: rgba(255, 255, 255, 0.72);
+  max-width: 420px;
+  line-height: 1.85;
+  margin-bottom: 36px;
+  font-weight: 400;
+}
+
+/* ─── Buttons ──────────────────────────────────────────────────── */
+/* White filled — strongest contrast on colored bg, premium feel */
+.hero .btn-primary {
+  background: rgba(255, 255, 255, 0.95);
+  color: #5E1A9E;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  padding: 11px 22px;
+}
+
+.hero .btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.32);
+  transform: translateY(-2px);
+  color: #4A1280;
+}
+
+/* White outline ghost */
+.hero .btn-ghost {
+  color: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: transparent;
+  font-size: 14px;
+  padding: 11px 22px;
+}
+
+.hero .btn-ghost:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ─── Actions ──────────────────────────────────────────────────── */
+.hero__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 48px;
+}
+
+/* ─── Stats ────────────────────────────────────────────────────── */
+.hero__stats {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  padding-top: 28px;
+  width: 100%;
+}
+
+.hero__stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding-right: 28px;
+}
+
+.hero__stat + .hero__stat {
+  padding-left: 28px;
+  padding-right: 28px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.hero__stat:last-child { padding-right: 0; }
+
+.hero__stat-value {
+  font-size: clamp(18px, 2.2vw, 28px);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.hero__stat-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.58);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Right visual — grows to fill remaining space ─────────────── */
+.hero__visual {
+  flex: 1;
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(10, 3, 22, 0.60);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.hero__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero__visual-label {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(206, 147, 216, 0.45);
+  z-index: 2;
+}
+
+/* ─── Corner brackets ──────────────────────────────────────────── */
+.hero__visual-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 2;
+}
+
+.hero__visual-corner--tl {
+  top: 10px; left: 10px;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-left: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-radius: 2px 0 0 0;
+}
+.hero__visual-corner--tr {
+  top: 10px; right: 10px;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-right: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-radius: 0 2px 0 0;
+}
+.hero__visual-corner--bl {
+  bottom: 10px; left: 10px;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-left: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-radius: 0 0 0 2px;
+}
+.hero__visual-corner--br {
+  bottom: 10px; right: 10px;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-right: 1.5px solid rgba(255, 255, 255, 0.40);
+  border-radius: 0 0 2px 0;
+}
+
+/* ─── LiDAR badge ──────────────────────────────────────────────── */
+.hero__lidar-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.90);
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 99px;
+  padding: 4px 10px;
+  z-index: 3;
+  backdrop-filter: blur(8px);
+}
+
+.hero__lidar-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #CE93D8;
+  animation: pulsePurple 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ─── Coordinates overlay ──────────────────────────────────────── */
+.hero__coords {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.88);
+  text-align: right;
+  z-index: 3;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 6px;
+  padding: 5px 9px;
+  backdrop-filter: blur(8px);
+}
+
+/* ─── Scroll indicator ─────────────────────────────────────────── */
+.hero__scroll {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.hero__scroll-line {
+  width: 1px;
+  height: 48px;
+  background: linear-gradient(to bottom, rgba(171, 71, 188, 0.70), transparent);
+  margin: 0 auto;
+  animation: float 2.2s ease-in-out infinite;
+}
+
+/* ─── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .hero__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding-top: 120px;
+    padding-bottom: 60px;
+    gap: 40px;
+  }
+
+  .hero__content {
+    flex: none;
+    width: 100%;
+  }
+
+  .hero__visual {
+    flex: none;
+    width: 100%;
+    max-width: 560px;
+    align-self: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .hero__inner {
+    align-items: center;
+    text-align: center;
+  }
+
+  .hero__content { align-items: center; }
+
+  .hero__headline span:first-child { margin-bottom: 2px; }
+
+  .hero__subtitle { text-align: center; }
+
+  .hero__actions { justify-content: center; }
+
+  .hero__stats { justify-content: center; }
+
+  .hero__stat {
+    align-items: center;
+    padding-right: 18px;
+  }
+
+  .hero__stat + .hero__stat { padding-left: 18px; }
+
+  .hero__visual { max-width: 100%; }
+}

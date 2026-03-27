@@ -1,0 +1,157 @@
+.contact {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.contact__bg {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 70%, rgba(123, 31, 162, 0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+/* ─── Header ──────────────────────────────────────────────────── */
+.contact__header {
+  margin-bottom: 56px;
+}
+
+/* ─── Centered cards block ────────────────────────────────────── */
+.contact__cards {
+  position: relative;
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.contact__company-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-bottom: 14px;
+}
+
+.contact__company-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.85;
+  margin-bottom: 40px;
+  max-width: 520px;
+}
+
+/* ─── Contact items row ───────────────────────────────────────── */
+.contact__contact-items {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  margin-bottom: 48px;
+}
+
+.contact__item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 28px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-accent);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  flex: 1;
+  min-width: 240px;
+  max-width: 300px;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+
+.contact__item:hover {
+  border-color: var(--accent-primary);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+
+.contact__item-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.contact__item-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.contact__item-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+
+.contact__item-value:hover {
+  color: var(--text-primary);
+}
+
+/* ─── Decorative ──────────────────────────────────────────────── */
+.contact__decor {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.contact__decor-ring {
+  position: absolute;
+  border-radius: 50%;
+  inset: 0;
+  border: 1px solid rgba(123, 31, 162, 0.15);
+  animation: rotateSlowly 12s linear infinite;
+}
+
+.contact__decor-ring--2 {
+  inset: 12px;
+  border-color: rgba(123, 31, 162, 0.22);
+  animation-direction: reverse;
+  animation-duration: 8s;
+}
+
+.contact__decor-core {
+  position: absolute;
+  inset: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(123, 31, 162, 0.20), rgba(123, 31, 162, 0.08));
+  border: 1px solid var(--accent-border);
+}
+
+/* ─── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .contact__contact-items {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .contact__item {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .contact__decor {
+    display: none;
+  }
+}
