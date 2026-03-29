@@ -1,426 +1,18 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
 import './Cases.css'
 
-/* ─── Pre-computed deterministic pile points (no per-frame random) */
-const PILE_PTS = (() => {
-  const pts = []
-  for (let row = 0; row < 11; row++) {
-    const frac = row / 10
-    const w = 0.12 + frac * 0.76
-    const n = Math.round(4 + frac * 24)
-    for (let d = 0; d < n; d++) {
-      const t = n === 1 ? 0.5 : d / (n - 1)
-      pts.push({ x: 0.5 - w / 2 + t * w, y: 0.08 + frac * 0.62, op: 0.35 + frac * 0.55 })
-    }
-  }
-  return pts
-})()
-
-/* ─── Case canvas illustrations ────────────────────────────────── */
-
-function drawAirport(ctx, W, H, t) {
-  ctx.clearRect(0, 0, W, H)
-  const cx = W * 0.5, cy = H * 0.46
-  const R = Math.min(W, H) * 0.36
-
-  // Radar rings
-  for (let i = 1; i <= 4; i++) {
-    ctx.beginPath()
-    ctx.arc(cx, cy, R * i / 4, 0, Math.PI * 2)
-    ctx.strokeStyle = `rgba(171,71,188,${0.10 + i * 0.04})`
-    ctx.lineWidth = 0.8
-    ctx.stroke()
-  }
-  // Cross hairs
-  for (const a of [0, Math.PI / 2]) {
-    ctx.beginPath()
-    ctx.moveTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R)
-    ctx.lineTo(cx - Math.cos(a) * R, cy - Math.sin(a) * R)
-    ctx.strokeStyle = 'rgba(171,71,188,0.14)'
-    ctx.lineWidth = 0.7
-    ctx.stroke()
-  }
-
-  // Sweep
-  const ang = (t * 0.0007) % (Math.PI * 2)
-  ctx.save()
-  ctx.translate(cx, cy)
-  ctx.rotate(ang)
-  ctx.beginPath()
-  ctx.moveTo(0, 0)
-  ctx.arc(0, 0, R, -0.55, 0.55)
-  ctx.closePath()
-  const sg = ctx.createRadialGradient(0, 0, 0, 0, 0, R)
-  sg.addColorStop(0, 'rgba(171,71,188,0.28)')
-  sg.addColorStop(1, 'rgba(171,71,188,0.01)')
-  ctx.fillStyle = sg
-  ctx.fill()
-  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R, 0)
-  ctx.strokeStyle = 'rgba(206,147,216,0.85)'; ctx.lineWidth = 1.5; ctx.stroke()
-  ctx.restore()
-
-  // Cargo containers (isometric boxes)
-  const boxes = [
-    { x: cx - 88, y: cy - 32, w: 72, h: 40 },
-    { x: cx + 10,  y: cy - 22, w: 72, h: 40 },
-    { x: cx + 90,  y: cy - 10, w: 62, h: 36 },
-    { x: cx - 70,  y: cy + 32, w: 80, h: 40 },
-    { x: cx + 30,  y: cy + 40, w: 68, h: 36 },
-  ]
-  boxes.forEach(b => {
-    // Front face
-    ctx.beginPath(); ctx.rect(b.x - b.w / 2, b.y - b.h / 2, b.w, b.h)
-    ctx.fillStyle = 'rgba(62,16,112,0.45)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.58)'; ctx.lineWidth = 1; ctx.stroke()
-    // Top face
-    const dx = 13, dy = -10
-    ctx.beginPath()
-    ctx.moveTo(b.x - b.w / 2, b.y - b.h / 2)
-    ctx.lineTo(b.x - b.w / 2 + dx, b.y - b.h / 2 + dy)
-    ctx.lineTo(b.x + b.w / 2 + dx, b.y - b.h / 2 + dy)
-    ctx.lineTo(b.x + b.w / 2, b.y - b.h / 2)
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(98,26,160,0.40)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.40)'; ctx.stroke()
-  })
-
-  // Blips (detected targets)
-  const blips = [{ x: cx - 90, y: cy - 50 }, { x: cx + 100, y: cy + 55 }, { x: cx - 30, y: cy + 75 }]
-  blips.forEach(b => {
-    ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(206,147,216,0.90)'; ctx.fill()
-    ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(206,147,216,0.30)'; ctx.lineWidth = 1; ctx.stroke()
-  })
-
-  // Airplane outline (top-down)
-  ctx.save(); ctx.translate(cx, cy - R * 0.72)
-  ctx.beginPath()
-  ctx.ellipse(0, 0, 42, 8, 0, 0, Math.PI * 2)
-  ctx.strokeStyle = 'rgba(171,71,188,0.45)'; ctx.lineWidth = 1; ctx.stroke()
-  ctx.beginPath()
-  ctx.moveTo(-6, 4); ctx.lineTo(-52, 22); ctx.lineTo(-44, 4)
-  ctx.moveTo(6, 4); ctx.lineTo(52, 22); ctx.lineTo(44, 4)
-  ctx.strokeStyle = 'rgba(171,71,188,0.32)'; ctx.stroke()
-  ctx.restore()
-
-  // Readout
-  ctx.font = '9px "Courier New",monospace'
-  ctx.fillStyle = 'rgba(206,147,216,0.78)'
-  ctx.textAlign = 'right'
-  ctx.fillText('OBJECTS: 5', W - 14, H - 36)
-  ctx.fillText('SCAN: ACTIVE', W - 14, H - 22)
-  ctx.fillText('RANGE: 200m', W - 14, H - 8)
-}
-
-function drawAggregate(ctx, W, H, t) {
-  ctx.clearRect(0, 0, W, H)
-  const tx = W * 0.44, ty = H * 0.64
-
-  // Truck body (cargo bed)
-  ctx.beginPath(); ctx.rect(tx - 115, ty - 58, 188, 58)
-  ctx.fillStyle = 'rgba(30,8,60,0.60)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.52)'; ctx.lineWidth = 1.5; ctx.stroke()
-
-  // Cab
-  ctx.beginPath(); ctx.rect(tx + 72, ty - 72, 68, 72)
-  ctx.fillStyle = 'rgba(30,8,60,0.55)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.45)'; ctx.lineWidth = 1.2; ctx.stroke()
-  // Windshield
-  ctx.beginPath(); ctx.rect(tx + 78, ty - 65, 46, 28)
-  ctx.fillStyle = 'rgba(62,16,112,0.40)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.30)'; ctx.lineWidth = 0.8; ctx.stroke()
-
-  // Wheels
-  ;[tx - 85, tx + 18, tx + 100].forEach(wx => {
-    ctx.beginPath(); ctx.arc(wx, ty + 14, 18, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(12,3,25,0.85)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.42)'; ctx.lineWidth = 1.2; ctx.stroke()
-    ctx.beginPath(); ctx.arc(wx, ty + 14, 8, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(171,71,188,0.28)'; ctx.lineWidth = 1; ctx.stroke()
-  })
-
-  // Aggregate pile (pre-computed points mapped to truck bed)
-  const bedX = tx - 112, bedW = 182, bedTop = ty - 58
-  PILE_PTS.forEach(p => {
-    const px = bedX + p.x * bedW
-    const py = bedTop + p.y * (bedW * 0.52) - bedW * 0.04
-    if (py < ty - 1 && py > 20) {
-      ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(206,147,216,${p.op})`; ctx.fill()
-    }
-  })
-
-  // LiDAR scanner beam sweeping across pile
-  const scanProgress = (t * 0.00038) % 1
-  const scanX = bedX + scanProgress * (bedW + 10) - 5
-  if (scanX > 0 && scanX < W) {
-    const sg = ctx.createLinearGradient(scanX, 16, scanX, ty - 4)
-    sg.addColorStop(0, 'rgba(171,71,188,0.85)')
-    sg.addColorStop(0.5, 'rgba(171,71,188,0.40)')
-    sg.addColorStop(1, 'rgba(171,71,188,0.05)')
-    ctx.beginPath(); ctx.moveTo(scanX, 16); ctx.lineTo(scanX, ty - 4)
-    ctx.strokeStyle = sg; ctx.lineWidth = 1.5; ctx.stroke()
-    // Emitter dot
-    ctx.beginPath(); ctx.arc(scanX, 16, 3.5, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(206,147,216,0.95)'; ctx.fill()
-  }
-
-  // LiDAR scanner rail at top
-  ctx.beginPath(); ctx.rect(bedX - 4, 8, bedW + 8, 8)
-  ctx.fillStyle = 'rgba(62,16,112,0.70)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.50)'; ctx.lineWidth = 1; ctx.stroke()
-
-  ctx.font = '9px "Courier New",monospace'
-  ctx.fillStyle = 'rgba(206,147,216,0.80)'
-  ctx.textAlign = 'right'
-  const vol = (28.4 + Math.sin(t * 0.001) * 0.2).toFixed(1)
-  ctx.fillText(`VOL: ${vol} m³`, W - 14, H - 36)
-  ctx.fillText('PRECISION: ±0.3%', W - 14, H - 22)
-  ctx.fillText('REAL-TIME OUTPUT', W - 14, H - 8)
-}
-
-function drawBattery(ctx, W, H, t) {
-  ctx.clearRect(0, 0, W, H)
-
-  const cols = 6, rows = 4
-  const cellW = Math.min(58, (W - 60) / cols - 10)
-  const cellH = cellW * 1.35
-  const gx = (cellW + 10), gy = (cellH + 12)
-  const gridW = cols * gx - 10, gridH = rows * gy - 12
-  const sx = (W - gridW) / 2, sy = (H - gridH) / 2 + 6
-
-  // Defective cells (deterministic)
-  const defects = new Set(['1-1', '3-2', '4-0', '0-3'])
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = sx + c * gx, y = sy + r * gy
-      const bad = defects.has(`${c}-${r}`)
-
-      // Cell body
-      ctx.beginPath(); ctx.rect(x, y, cellW, cellH)
-      ctx.fillStyle = bad ? 'rgba(120,18,50,0.55)' : 'rgba(55,14,100,0.55)'
-      ctx.fill()
-      ctx.strokeStyle = bad ? 'rgba(220,60,90,0.70)' : 'rgba(171,71,188,0.52)'
-      ctx.lineWidth = 1; ctx.stroke()
-
-      // Terminal tab
-      ctx.beginPath(); ctx.rect(x + cellW * 0.28, y - 7, cellW * 0.44, 7)
-      ctx.fillStyle = bad ? 'rgba(220,60,90,0.45)' : 'rgba(98,26,160,0.55)'
-      ctx.fill(); ctx.stroke()
-
-      if (!bad) {
-        // Charge indicator bar
-        const fill = cellH * 0.60
-        ctx.beginPath(); ctx.rect(x + 7, y + cellH - fill - 5, cellW - 14, fill)
-        ctx.fillStyle = 'rgba(171,71,188,0.22)'; ctx.fill()
-        // Horizontal lines inside
-        for (let li = 0; li < 3; li++) {
-          const ly = y + cellH - 14 - li * 14
-          ctx.beginPath(); ctx.moveTo(x + 7, ly); ctx.lineTo(x + cellW - 7, ly)
-          ctx.strokeStyle = 'rgba(171,71,188,0.18)'; ctx.lineWidth = 0.8; ctx.stroke()
-        }
-      } else {
-        // X mark
-        ctx.beginPath()
-        ctx.moveTo(x + 10, y + 12); ctx.lineTo(x + cellW - 10, y + cellH - 12)
-        ctx.moveTo(x + cellW - 10, y + 12); ctx.lineTo(x + 10, y + cellH - 12)
-        ctx.strokeStyle = 'rgba(220,60,90,0.85)'; ctx.lineWidth = 1.5; ctx.stroke()
-      }
-    }
-  }
-
-  // Scan beam
-  const scanY = sy + ((t * 0.00042) % 1.12) * (gridH + cellH) - cellH * 0.06
-  const sg = ctx.createLinearGradient(sx - 8, scanY, sx + gridW + 8, scanY)
-  sg.addColorStop(0, 'rgba(171,71,188,0)')
-  sg.addColorStop(0.15, 'rgba(171,71,188,0.55)')
-  sg.addColorStop(0.85, 'rgba(171,71,188,0.55)')
-  sg.addColorStop(1, 'rgba(171,71,188,0)')
-  ctx.fillStyle = sg; ctx.fillRect(sx - 8, scanY - 2, gridW + 16, 4)
-  ctx.beginPath(); ctx.moveTo(sx - 8, scanY); ctx.lineTo(sx + gridW + 8, scanY)
-  ctx.strokeStyle = 'rgba(206,147,216,0.78)'; ctx.lineWidth = 1; ctx.stroke()
-
-  // Camera viewport lines at top
-  ctx.beginPath()
-  ctx.moveTo(sx - 20, 14); ctx.lineTo(sx, sy - 8)
-  ctx.moveTo(sx + gridW + 20, 14); ctx.lineTo(sx + gridW, sy - 8)
-  ctx.strokeStyle = 'rgba(171,71,188,0.35)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4])
-  ctx.stroke(); ctx.setLineDash([])
-
-  ctx.font = '9px "Courier New",monospace'
-  ctx.fillStyle = 'rgba(206,147,216,0.80)'
-  ctx.textAlign = 'right'
-  ctx.fillText('INSPECT: 100%', W - 14, H - 36)
-  ctx.fillText('DEFECTS: 4/24', W - 14, H - 22)
-  ctx.fillText('DEFECT RATE: 16.7%', W - 14, H - 8)
-}
-
-function drawParcel(ctx, W, H, t) {
-  ctx.clearRect(0, 0, W, H)
-
-  const beltY = H * 0.52, beltH = H * 0.16
-
-  // Belt surface
-  ctx.beginPath(); ctx.rect(0, beltY, W, beltH)
-  ctx.fillStyle = 'rgba(30,8,60,0.62)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.32)'; ctx.lineWidth = 1; ctx.stroke()
-
-  // Belt lane dividers (static)
-  ctx.beginPath(); ctx.moveTo(0, beltY + beltH * 0.5); ctx.lineTo(W, beltY + beltH * 0.5)
-  ctx.strokeStyle = 'rgba(171,71,188,0.16)'; ctx.lineWidth = 0.8; ctx.stroke()
-
-  // Moving belt stripes
-  const stripeSpacing = 36
-  const offset = (t * 0.052) % stripeSpacing
-  for (let x = offset - stripeSpacing; x < W + stripeSpacing; x += stripeSpacing) {
-    ctx.beginPath(); ctx.moveTo(x, beltY); ctx.lineTo(x, beltY + beltH)
-    ctx.strokeStyle = 'rgba(171,71,188,0.10)'; ctx.lineWidth = 1; ctx.stroke()
-  }
-
-  // Belt rollers at ends
-  for (const rx of [12, W - 12]) {
-    ctx.beginPath(); ctx.ellipse(rx, beltY + beltH / 2, 10, beltH / 2, 0, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(62,16,112,0.70)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.45)'; ctx.lineWidth = 1; ctx.stroke()
-  }
-
-  // Packages (3 visible, animating)
-  const speed = t * 0.038
-  const pkgs = [
-    { base: 80,  w: 76, h: 60, label: '42×38×55cm', hasBracket: false, hasBarcode: true },
-    { base: 280, w: 58, h: 48, label: '30×28×40cm', hasBracket: true,  hasBarcode: false },
-    { base: 460, w: 84, h: 66, label: '55×45×60cm', hasBracket: false, hasBarcode: false },
-    { base: 660, w: 54, h: 44, label: '28×22×35cm', hasBracket: false, hasBarcode: true },
-    { base: 840, w: 70, h: 56, label: '38×35×50cm', hasBracket: false, hasBarcode: false },
-  ]
-
-  pkgs.forEach(pkg => {
-    const rawX = ((pkg.base - speed * 28) % (W + 200)) - 100
-    if (rawX < -120 || rawX > W + 20) return
-    const x = rawX, y = beltY - pkg.h
-
-    // Front face
-    ctx.beginPath(); ctx.rect(x, y, pkg.w, pkg.h)
-    ctx.fillStyle = 'rgba(55,14,100,0.68)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.62)'; ctx.lineWidth = 1.2; ctx.stroke()
-
-    // Top face (iso)
-    const iso = 12
-    ctx.beginPath()
-    ctx.moveTo(x, y); ctx.lineTo(x + iso, y - iso * 0.7)
-    ctx.lineTo(x + pkg.w + iso, y - iso * 0.7); ctx.lineTo(x + pkg.w, y)
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(98,26,160,0.48)'; ctx.fill()
-    ctx.strokeStyle = 'rgba(171,71,188,0.45)'; ctx.lineWidth = 1; ctx.stroke()
-
-    // Tape stripe
-    ctx.beginPath(); ctx.rect(x, y + pkg.h * 0.44, pkg.w, 5)
-    ctx.fillStyle = 'rgba(171,71,188,0.22)'; ctx.fill()
-
-    // Measurement brackets
-    if (pkg.hasBracket) {
-      ctx.strokeStyle = 'rgba(206,147,216,0.90)'; ctx.lineWidth = 1
-      // Width
-      const by = y + pkg.h + 11
-      ctx.beginPath(); ctx.moveTo(x, by); ctx.lineTo(x + pkg.w, by); ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(x, by - 4); ctx.lineTo(x, by + 4)
-      ctx.moveTo(x + pkg.w, by - 4); ctx.lineTo(x + pkg.w, by + 4)
-      ctx.stroke()
-      // Height
-      const bx2 = x + pkg.w + 10
-      ctx.beginPath(); ctx.moveTo(bx2, y); ctx.lineTo(bx2, y + pkg.h); ctx.stroke()
-      ctx.beginPath()
-      ctx.moveTo(bx2 - 4, y); ctx.lineTo(bx2 + 4, y)
-      ctx.moveTo(bx2 - 4, y + pkg.h); ctx.lineTo(bx2 + 4, y + pkg.h)
-      ctx.stroke()
-      // Label
-      ctx.font = '9px "Courier New",monospace'
-      ctx.fillStyle = 'rgba(206,147,216,0.95)'
-      ctx.textAlign = 'center'
-      ctx.fillText(pkg.label, x + pkg.w / 2, by + 16)
-      ctx.textAlign = 'left'
-    }
-
-    // Barcode
-    if (pkg.hasBarcode) {
-      const bx = x + 8, by = y + pkg.h * 0.25
-      for (let b = 0; b < 14; b++) {
-        const bw = (b % 3 === 0) ? 2.5 : 1.2
-        ctx.beginPath(); ctx.rect(bx + b * 4, by, bw, pkg.h * 0.45)
-        ctx.fillStyle = 'rgba(206,147,216,0.48)'; ctx.fill()
-      }
-    }
-  })
-
-  // Overhead scanner
-  const scanCX = W * 0.42
-  ctx.beginPath()
-  ctx.moveTo(scanCX, 14); ctx.lineTo(scanCX - 28, beltY); ctx.lineTo(scanCX + 28, beltY)
-  ctx.closePath()
-  const tg = ctx.createLinearGradient(scanCX, 14, scanCX, beltY)
-  tg.addColorStop(0, 'rgba(171,71,188,0.42)')
-  tg.addColorStop(1, 'rgba(171,71,188,0.04)')
-  ctx.fillStyle = tg; ctx.fill()
-  ctx.beginPath(); ctx.rect(scanCX - 20, 6, 40, 12)
-  ctx.fillStyle = 'rgba(62,16,112,0.82)'; ctx.fill()
-  ctx.strokeStyle = 'rgba(171,71,188,0.60)'; ctx.lineWidth = 1; ctx.stroke()
-
-  ctx.font = '9px "Courier New",monospace'
-  ctx.fillStyle = 'rgba(206,147,216,0.80)'
-  ctx.textAlign = 'right'
-  ctx.fillText('THROUGHPUT: 500K/day', W - 14, H - 36)
-  ctx.fillText('ERROR: <0.5cm³', W - 14, H - 22)
-  ctx.fillText('BILLING: AUTO 100%', W - 14, H - 8)
-}
-
-const DRAW_FN = { airport: drawAirport, aggregate: drawAggregate, battery: drawBattery, parcel: drawParcel }
-
-function CaseCanvas({ drawType }) {
-  const canvasRef = useRef(null)
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    let animId
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1
-      canvas.width = canvas.offsetWidth * dpr
-      canvas.height = canvas.offsetHeight * dpr
-      ctx.scale(dpr, dpr)
-    }
-    resize()
-    window.addEventListener('resize', resize)
-
-    const fn = DRAW_FN[drawType]
-    const loop = (t) => {
-      fn(ctx, canvas.offsetWidth, canvas.offsetHeight, t)
-      animId = requestAnimationFrame(loop)
-    }
-    animId = requestAnimationFrame(loop)
-
-    return () => {
-      cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
-    }
-  }, [drawType])
-
-  return <canvas ref={canvasRef} className="case__canvas" aria-hidden="true" />
-}
-
 /* ─── Case visual wrapper ───────────────────────────────────────── */
-function CaseVisual({ product, accentColor, drawType }) {
+function CaseVisual({ product, accentColor, imageUrl }) {
   return (
     <div className="case__visual" aria-hidden="true">
-      <CaseCanvas drawType={drawType} />
+      <img src={imageUrl} alt="" className="case__img" />
       <div className="case__visual-overlay" />
-      <div className="case__visual-product" style={{ color: accentColor, borderColor: `${accentColor}60`, background: 'rgba(6,8,18,0.75)' }}>
+      <div
+        className="case__visual-product"
+        style={{ color: accentColor, borderColor: `${accentColor}60`, background: 'rgba(6,8,18,0.75)' }}
+      >
         {product}
       </div>
       <div className="case__scan-line" />
@@ -432,7 +24,7 @@ function CaseVisual({ product, accentColor, drawType }) {
 const CASES = [
   {
     id: 1,
-    drawType: 'airport',
+    imageUrl: '/imgs/aviation_logistics.png',
     client: '某国际枢纽机场',
     industry: '航空货运',
     industryTag: 'Aviation Logistics',
@@ -450,7 +42,7 @@ const CASES = [
   },
   {
     id: 2,
-    drawType: 'aggregate',
+    imageUrl: '/imgs/bulk_material.webp',
     client: '华东某大型骨料集团',
     industry: '建材物流',
     industryTag: 'Bulk Material',
@@ -468,7 +60,7 @@ const CASES = [
   },
   {
     id: 3,
-    drawType: 'battery',
+    imageUrl: '/imgs/EV_manufacturing.webp',
     client: '华南某新能源电池制造商',
     industry: '新能源制造',
     industryTag: 'EV Manufacturing',
@@ -486,7 +78,7 @@ const CASES = [
   },
   {
     id: 4,
-    drawType: 'parcel',
+    imageUrl: '/imgs/express_logistics.webp',
     client: '某全国领先快递物流企业',
     industry: '快递物流',
     industryTag: 'Express Logistics',
@@ -582,7 +174,11 @@ export default function Cases() {
               </blockquote>
             </div>
             <div className="cases__right">
-              <CaseVisual product={current.product} accentColor={current.accentColor} drawType={current.drawType} />
+              <CaseVisual
+                product={current.product}
+                accentColor={current.accentColor}
+                imageUrl={current.imageUrl}
+              />
             </div>
           </motion.div>
         </AnimatePresence>
